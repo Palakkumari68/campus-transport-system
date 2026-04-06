@@ -142,69 +142,91 @@ function DriverLogin() {
   const handleLogin = (e) => {
     e.preventDefault();
 
-    // Dummy login (no backend)
+    // Dummy login
     if (email && password) {
       localStorage.setItem(
         "user",
-        JSON.stringify({ role: "DRIVER", email })
+        JSON.stringify({ role: "DRIVER", name: "Driver", email })
       );
       navigate("/driver/dashboard");
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#efefef] flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white rounded-[28px] shadow-lg p-8 md:p-10">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+
+      {/* Main Card */}
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-lg border border-gray-200 p-8 md:p-10">
+
+        {/* Logo Section */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center text-white text-3xl font-bold shadow-md">
-            D
+            🚗
           </div>
 
-          <h2 className="mt-4 text-3xl font-bold text-gray-900">
-            Driver Login
+          <h2 className="mt-4 text-3xl font-bold text-black">
+            Driver Portal
           </h2>
 
           <p className="mt-2 text-sm text-gray-600 text-center leading-6">
-            Login using your driver email and password to access your account
-            and transport services.
+            Smart Campus Transport System
           </p>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleLogin} className="space-y-5">
+
+          {/* Email */}
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-2">
               Driver Email
             </label>
+
             <input
               type="text"
               placeholder="Enter your driver email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-800 placeholder-gray-400 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-200"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-800 placeholder-gray-400 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-200"
             />
           </div>
 
+          {/* Password */}
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-2">
               Password
             </label>
+
             <input
               type="password"
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-800 placeholder-gray-400 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-200"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-800 placeholder-gray-400 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-200"
             />
           </div>
 
+          {/* Button */}
           <button
             type="submit"
             className="w-full rounded-full bg-red-600 py-3 text-white font-semibold shadow-md transition duration-200 hover:bg-red-700"
           >
-            Login Now
+            Sign in as Driver
           </button>
         </form>
+
+        {/* Bottom Link */}
+        <p className="mt-6 text-center text-sm text-gray-600">
+          Not a driver?{" "}
+          <span className="text-red-600 font-medium cursor-pointer hover:underline">
+            Go to main login
+          </span>
+        </p>
       </div>
+
+      {/* Bottom Red Strip (CUIMS style touch) */}
+      <div className="hidden md:block absolute bottom-0 left-0 w-full h-24 bg-red-600"></div>
+
     </div>
   );
 }
