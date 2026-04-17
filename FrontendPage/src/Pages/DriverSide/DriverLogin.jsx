@@ -1,0 +1,251 @@
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../Context/AuthContext";
+
+export default function DriverLogin() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const user = await login({ ...form, expectedRole: "DRIVER" });
+
+      if (user.role !== "DRIVER") {
+        setError("This login is only for drivers. Use the main login page.");
+        setLoading(false);
+        return;
+      }
+
+      navigate("/driver/dashboard");
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Login failed. Check your credentials."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 relative">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-lg border border-gray-200 p-8 md:p-10 z-10">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center text-white text-3xl font-bold shadow-md">
+            🚗
+          </div>
+
+          <h2 className="mt-4 text-3xl font-bold text-black">Driver Portal</h2>
+
+          <p className="mt-2 text-sm text-gray-600 text-center leading-6">
+            Smart Campus Emergency &amp; Transport System
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">
+              Driver Email / ID
+            </label>
+
+            <input
+              type="text"
+              name="email"
+              placeholder="driver@campus.edu"
+              value={form.email}
+              onChange={handleChange}
+              autoComplete="username"
+              required
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-800 placeholder-gray-400 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-200"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">
+              Password
+            </label>
+
+            <input
+              type="password"
+              name="password"
+              placeholder="••••••••"
+              value={form.password}
+              onChange={handleChange}
+              autoComplete="current-password"
+              required
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-800 placeholder-gray-400 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-200"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-full bg-red-600 py-3 text-white font-semibold shadow-md transition duration-200 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {loading ? "Signing in..." : "Sign in as Driver"}
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-gray-600">
+          Not a driver?{" "}
+          <Link
+            to="/login"
+            className="text-red-600 font-medium hover:underline"
+          >
+            Go to main login
+          </Link>
+        </p>
+
+        <p className="mt-4 border-t border-gray-200 pt-3 text-xs text-gray-400 text-center">
+          API: POST /api/auth/login — expects {"{ email, password }"}
+        </p>
+      </div>
+
+      <div className="hidden md:block absolute bottom-0 left-0 w-full h-24 bg-red-600"></div>
+    </div>
+  );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// import { useNavigate } from "react-router-dom";
+// import { useState } from "react";
+
+// function DriverLogin() {
+//   const navigate = useNavigate();
+
+//   const [email, setEmail] = useState("");
+//   const [password, setPassword] = useState("");
+
+//   const handleLogin = (e) => {
+//     e.preventDefault();
+
+//     // Dummy login
+//     if (email && password) {
+//       localStorage.setItem(
+//         "user",
+//         JSON.stringify({ role: "DRIVER", name: "Driver", email })
+//       );
+//       navigate("/driver/dashboard");
+//     }
+//   };
+
+//   return (
+//     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+
+//       {/* Main Card */}
+//       <div className="w-full max-w-md bg-white rounded-3xl shadow-lg border border-gray-200 p-8 md:p-10">
+
+//         {/* Logo Section */}
+//         <div className="flex flex-col items-center mb-8">
+//           <div className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center text-white text-3xl font-bold shadow-md">
+//             🚗
+//           </div>
+
+//           <h2 className="mt-4 text-3xl font-bold text-black">
+//             Driver Portal
+//           </h2>
+
+//           <p className="mt-2 text-sm text-gray-600 text-center leading-6">
+//             Smart Campus Transport System
+//           </p>
+//         </div>
+
+//         {/* Form */}
+//         <form onSubmit={handleLogin} className="space-y-5">
+
+//           {/* Email */}
+//           <div>
+//             <label className="block text-sm font-semibold text-gray-800 mb-2">
+//               Driver Email
+//             </label>
+
+//             <input
+//               type="text"
+//               placeholder="Enter your driver email"
+//               value={email}
+//               onChange={(e) => setEmail(e.target.value)}
+//               className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-800 placeholder-gray-400 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-200"
+//             />
+//           </div>
+
+//           {/* Password */}
+//           <div>
+//             <label className="block text-sm font-semibold text-gray-800 mb-2">
+//               Password
+//             </label>
+
+//             <input
+//               type="password"
+//               placeholder="Enter your password"
+//               value={password}
+//               onChange={(e) => setPassword(e.target.value)}
+//               className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-800 placeholder-gray-400 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-200"
+//             />
+//           </div>
+
+//           {/* Button */}
+//           <button
+//             type="submit"
+//             className="w-full rounded-full bg-red-600 py-3 text-white font-semibold shadow-md transition duration-200 hover:bg-red-700"
+//           >
+//             Sign in as Driver
+//           </button>
+//         </form>
+
+//         {/* Bottom Link */}
+//         <p className="mt-6 text-center text-sm text-gray-600">
+//           Not a driver?{" "}
+//           <span className="text-red-600 font-medium cursor-pointer hover:underline">
+//             Go to main login
+//           </span>
+//         </p>
+//       </div>
+
+//       {/* Bottom Red Strip (CUIMS style touch) */}
+//       <div className="hidden md:block absolute bottom-0 left-0 w-full h-24 bg-red-600"></div>
+
+//     </div>
+//   );
+// }
+
+// export default DriverLogin;
