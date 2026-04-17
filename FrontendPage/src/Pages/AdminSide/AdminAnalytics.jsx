@@ -1,6 +1,6 @@
 // src/pages/admin/AdminAnalytics.jsx
 import React, { useEffect, useState } from "react";
-import { getAnalytics, getAllRequests } from "../../Services/api";
+import { getAnalytics, getAllRequests } from "../../services/api";
 import {
   Card, SectionTitle, StatCard, PageWrapper,
 } from "../../Components/AdminUI";

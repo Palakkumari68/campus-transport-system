@@ -1,31 +1,96 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TrackMap from "./TrackMap";
+import { getMyRequests } from "../../services/api";
 
 export default function RequestStatus() {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(null);
   const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("currentUser") || "null");
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    const token = localStorage.getItem("token");
 
-    if (!user) {
-      navigate("/", { replace: true });
+    if (!user || !token) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    if (user.role !== "STUDENT" && user.role !== "USER") {
+      if (user.role === "ADMIN") {
+        navigate("/admin/dashboard", { replace: true });
+      } else if (user.role === "DRIVER") {
+        navigate("/driver/dashboard", { replace: true });
+      } else {
+        navigate("/login", { replace: true });
+      }
       return;
     }
 
     setCurrentUser(user);
-
-    const allRequests = JSON.parse(localStorage.getItem("requests") || "[]");
-    const userRequests = allRequests.filter((r) => r.userEmail === user.email);
-    setRequests(userRequests);
+    fetchMyRequests();
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("currentUser");
-    navigate("/");
+  const fetchMyRequests = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const res = await getMyRequests();
+      setRequests(res.data || []);
+    } catch (err) {
+      console.error("Failed to load user requests:", err);
+      setError(
+        err.response?.data?.message || "Could not load your requests."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("token");
+    navigate("/login", { replace: true });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "PENDING":
+        return { bg: "#fef3c7", color: "#b45309" };
+      case "ACCEPTED":
+        return { bg: "#dbeafe", color: "#1d4ed8" };
+      case "IN_PROGRESS":
+        return { bg: "#fee2e2", color: "#b91c1c" };
+      case "COMPLETED":
+        return { bg: "#dcfce7", color: "#15803d" };
+      case "CANCELLED":
+        return { bg: "#e5e7eb", color: "#374151" };
+      default:
+        return { bg: "#f3f4f6", color: "#374151" };
+    }
+  };
+
+  const getServiceLabel = (serviceType) => {
+    switch (serviceType) {
+      case "AMBULANCE":
+        return "🚑 Ambulance";
+      case "ERICKSHAW":
+        return "🛺 E-Rickshaw";
+      case "INDENTA":
+        return "🚌 Indenta";
+      default:
+        return serviceType || "Service";
+    }
+  };
+
+  if (!currentUser) {
+    return <div style={{ padding: "40px", fontSize: "18px" }}>Loading...</div>;
+  }
 
   return (
     <div style={styles.page}>
@@ -57,14 +122,6 @@ export default function RequestStatus() {
             <span>My Requests</span>
           </button>
 
-          <button
-            style={styles.navItem}
-            onClick={() => navigate("/register")}
-          >
-            <span>📝</span>
-            <span>Register</span>
-          </button>
-
           <button style={styles.navItem} onClick={handleLogout}>
             <span>🚪</span>
             <span>Logout</span>
@@ -80,35 +137,100 @@ export default function RequestStatus() {
               Track all your submitted service requests
             </p>
           </div>
+
+          <button style={styles.refreshBtn} onClick={fetchMyRequests}>
+            Refresh
+          </button>
         </div>
 
         <div style={styles.card}>
-          {currentUser && (
-            <p style={styles.loggedText}>
-              Logged in as: <strong>{currentUser.fullName || currentUser.email}</strong>
+          <p style={styles.loggedText}>
+            Logged in as:{" "}
+            <strong>
+              {currentUser.fullName || currentUser.name || currentUser.email}
+            </strong>
+          </p>
+
+          {error && <div style={styles.errorBox}>{error}</div>}
+
+          {loading ? (
+            <p style={styles.emptyText}>Loading your requests...</p>
+          ) : requests.length === 0 ? (
+            <p style={styles.emptyText}>
+              No service requests found. Try booking a service first.
             </p>
+          ) : (
+            <>
+              <div style={styles.requestGrid}>
+                {requests.map((request) => {
+                  const statusStyle = getStatusColor(request.status);
+
+                  return (
+                    <div key={request.id} style={styles.requestCard}>
+                      <p>
+                        <strong>Request ID:</strong> REQ-{request.id}
+                      </p>
+
+                      <p>
+                        <strong>Service:</strong>{" "}
+                        {getServiceLabel(request.serviceType)}
+                      </p>
+
+                      <p>
+                        <strong>Pickup:</strong>{" "}
+                        {request.pickupLocation || "—"}
+                      </p>
+
+                      <p>
+                        <strong>Drop:</strong>{" "}
+                        {request.dropLocation || request.destination || "—"}
+                      </p>
+
+                      {request.description && (
+                        <p>
+                          <strong>Note:</strong> {request.description}
+                        </p>
+                      )}
+
+                      <p>
+                        <strong>Status:</strong>{" "}
+                        <span
+                          style={{
+                            ...styles.statusBadge,
+                            background: statusStyle.bg,
+                            color: statusStyle.color,
+                          }}
+                        >
+                          {request.status}
+                        </span>
+                      </p>
+
+                      {request.driverName && (
+                        <div style={styles.driverBox}>
+                          <p>
+                            <strong>Driver Name:</strong> {request.driverName}
+                          </p>
+                          <p>
+                            <strong>Driver Phone:</strong>{" "}
+                            {request.driverPhone || "Not available"}
+                          </p>
+                        </div>
+                      )}
+
+                      {request.createdAt && (
+                        <p>
+                          <strong>Created:</strong>{" "}
+                          {new Date(request.createdAt).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <TrackMap />
+            </>
           )}
-
-          {requests.length === 0 ? (
-  <p style={styles.emptyText}>No service requests found. Try booking a service first.</p>
-) : (
-  <>
-    <div style={styles.requestGrid}>
-      {requests.map((request) => (
-        <div key={request.reqId} style={styles.requestCard}>
-          <p><strong>Request ID:</strong> {request.reqId}</p>
-          <p><strong>Service:</strong> {request.service}</p>
-          <p><strong>Pickup:</strong> {request.pickup}</p>
-          <p><strong>Drop:</strong> {request.drop}</p>
-          <p><strong>Urgency:</strong> {request.urgency}</p>
-          <p><strong>Status:</strong> {request.status}</p>
-        </div>
-      ))}
-    </div>
-
-    <TrackMap />
-  </>
-)}
         </div>
       </main>
     </div>
@@ -183,6 +305,11 @@ const styles = {
   },
   topBar: {
     marginBottom: "24px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    flexWrap: "wrap",
   },
   pageTitle: {
     margin: 0,
@@ -195,6 +322,14 @@ const styles = {
     marginTop: "8px",
     fontSize: "15px",
   },
+  refreshBtn: {
+    border: "1px solid #d0d5dd",
+    background: "#fff",
+    padding: "10px 16px",
+    borderRadius: "12px",
+    cursor: "pointer",
+    fontWeight: "700",
+  },
   card: {
     background: "#fff",
     borderRadius: "20px",
@@ -206,13 +341,22 @@ const styles = {
     marginBottom: "20px",
     color: "#344054",
   },
+  errorBox: {
+    color: "#d92d20",
+    background: "#fef3f2",
+    border: "1px solid #fecdca",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    fontSize: "14px",
+    marginBottom: "16px",
+  },
   emptyText: {
     color: "#667085",
     fontSize: "15px",
   },
   requestGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
     gap: "16px",
   },
   requestCard: {
@@ -221,5 +365,19 @@ const styles = {
     borderRadius: "16px",
     padding: "18px",
     lineHeight: "1.8",
+  },
+  statusBadge: {
+    display: "inline-block",
+    padding: "4px 10px",
+    borderRadius: "999px",
+    fontWeight: "700",
+    fontSize: "12px",
+  },
+  driverBox: {
+    marginTop: "10px",
+    padding: "10px 12px",
+    borderRadius: "12px",
+    background: "#eff6ff",
+    border: "1px solid #bfdbfe",
   },
 };

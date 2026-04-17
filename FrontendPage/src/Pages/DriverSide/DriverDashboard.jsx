@@ -1,68 +1,109 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const dummyRequests = [
-  {
-    id: 101,
-    requesterName: "Aman Verma",
-    pickupLocation: "Hostel Block A",
-    dropLocation: "Medical Room",
-    status: "PENDING",
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 102,
-    requesterName: "Dr. Mehta",
-    pickupLocation: "Faculty Block",
-    dropLocation: "Main Gate",
-    status: "IN_PROGRESS",
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 103,
-    requesterName: "Riya Sharma",
-    pickupLocation: "Library",
-    dropLocation: "Girls Hostel",
-    status: "COMPLETED",
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 104,
-    requesterName: "Sarthak",
-    pickupLocation: "Block C",
-    dropLocation: "Parking Area",
-    status: "COMPLETED",
-    updatedAt: new Date().toISOString(),
-  },
-];
+import {
+  getDriverRequests,
+  updateDriverAvailability,
+} from "../../services/api";
 
 export default function DriverDashboard() {
   const navigate = useNavigate();
+
   const [currentUser, setCurrentUser] = useState(null);
-  const [availability, setAvailability] = useState("ON_DUTY");
-  const [requests] = useState(dummyRequests);
+  const [availability, setAvailability] = useState("OFF_DUTY");
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("currentUser") || "null");
+    const storedUser =
+      JSON.parse(localStorage.getItem("currentUser") || "null") ||
+      JSON.parse(localStorage.getItem("user") || "null");
 
-    if (!user) {
+    const token = localStorage.getItem("token");
+
+    if (!storedUser || !token) {
       navigate("/login", { replace: true });
       return;
     }
 
-    if (user.role !== "DRIVER") {
-      if (user.role === "ADMIN") {
+    if (storedUser.role !== "DRIVER") {
+      if (storedUser.role === "ADMIN") {
         navigate("/admin/dashboard", { replace: true });
-      } else if (user.role === "USER") {
-        navigate("/dashboard", { replace: true });
       } else {
-        navigate("/login", { replace: true });
+        navigate("/dashboard", { replace: true });
       }
       return;
     }
 
-    setCurrentUser(user);
+    setCurrentUser(storedUser);
+
+    if (storedUser.availability) {
+      setAvailability(storedUser.availability);
+    }
+
+    fetchDriverRequests();
   }, [navigate]);
+
+  const fetchDriverRequests = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await getDriverRequests();
+      const apiData = response?.data || [];
+
+      setRequests(apiData);
+    } catch (err) {
+      console.error("Failed to fetch driver requests:", err);
+      setError(
+        err.response?.data?.message || "Could not load requests from backend."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAvailabilityChange = async (newStatus) => {
+    try {
+      setStatusUpdating(true);
+      setError("");
+
+      await updateDriverAvailability(newStatus);
+      setAvailability(newStatus);
+
+      const storedUser =
+        JSON.parse(localStorage.getItem("currentUser") || "null") ||
+        JSON.parse(localStorage.getItem("user") || "null");
+
+      if (storedUser) {
+        const updatedUser = { ...storedUser, availability: newStatus };
+
+        if (localStorage.getItem("currentUser")) {
+          localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+        }
+        if (localStorage.getItem("user")) {
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
+
+        setCurrentUser(updatedUser);
+      }
+    } catch (err) {
+      console.error("Failed to update availability:", err);
+      setError(
+        err.response?.data?.message || "Could not update driver availability."
+      );
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
 
   const pending = useMemo(
     () => requests.filter((r) => r.status === "PENDING"),
@@ -78,7 +119,11 @@ export default function DriverDashboard() {
     return requests.filter((r) => {
       if (r.status !== "COMPLETED") return false;
 
-      const d = new Date(r.updatedAt);
+      const rawDate =
+        r.updatedAt || r.updated_at || r.createdAt || r.created_at;
+      if (!rawDate) return false;
+
+      const d = new Date(rawDate);
       const now = new Date();
 
       return (
@@ -94,19 +139,18 @@ export default function DriverDashboard() {
     [requests]
   );
 
-  const handleLogout = () => {
-    localStorage.removeItem("currentUser");
-    navigate("/login");
-  };
-
   const availabilityStyle = {
     ON_DUTY: "bg-green-50 text-green-700 border border-green-300",
     OFF_DUTY: "bg-red-50 text-red-700 border border-red-300",
     ON_BREAK: "bg-yellow-50 text-yellow-700 border border-yellow-300",
   };
 
+  if (loading) {
+    return <div className="p-10 text-lg">Loading dashboard...</div>;
+  }
+
   if (!currentUser) {
-    return <div className="p-10 text-lg">Loading...</div>;
+    return <div className="p-10 text-lg">Loading user...</div>;
   }
 
   return (
@@ -114,7 +158,7 @@ export default function DriverDashboard() {
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-black">
-            Welcome, {currentUser?.fullName || "Driver"} 👋
+            Welcome, {currentUser?.fullName || currentUser?.name || "Driver"} 👋
           </h1>
           <p className="mt-1 text-sm text-gray-600">
             Here&apos;s your shift overview
@@ -125,8 +169,11 @@ export default function DriverDashboard() {
           <span className="text-sm font-medium text-gray-600">Status:</span>
           <select
             value={availability}
-            onChange={(e) => setAvailability(e.target.value)}
-            className={`rounded-full px-4 py-2 text-sm font-semibold outline-none ${availabilityStyle[availability]}`}
+            onChange={(e) => handleAvailabilityChange(e.target.value)}
+            disabled={statusUpdating}
+            className={`rounded-full px-4 py-2 text-sm font-semibold outline-none ${
+              availabilityStyle[availability]
+            }`}
           >
             <option value="ON_DUTY">On Duty</option>
             <option value="OFF_DUTY">Off Duty</option>
@@ -141,6 +188,12 @@ export default function DriverDashboard() {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-700 shadow-sm">
+          {error}
+        </div>
+      )}
 
       {activeTrip && (
         <div
@@ -234,10 +287,16 @@ export default function DriverDashboard() {
             <thead className="bg-red-600 text-white">
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold">ID</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Passenger</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold">From</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">
+                  Passenger
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">
+                  From
+                </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold">To</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">
+                  Status
+                </th>
               </tr>
             </thead>
 
@@ -250,15 +309,18 @@ export default function DriverDashboard() {
                 </tr>
               ) : (
                 requests.slice(0, 8).map((r) => (
-                  <tr key={r.id} className="border-t border-gray-200 hover:bg-gray-50">
+                  <tr
+                    key={r.id}
+                    className="border-t border-gray-200 hover:bg-gray-50"
+                  >
                     <td className="px-6 py-4 text-sm font-medium text-black">
                       REQ-{r.id}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">
-                      {r.requesterName}
+                      {r.requesterName || r.requester?.name || "—"}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">
-                      {r.pickupLocation}
+                      {r.pickupLocation || "—"}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">
                       {r.dropLocation || "—"}
@@ -299,7 +361,7 @@ export default function DriverDashboard() {
       </div>
 
       <p className="mt-4 text-xs text-gray-500">
-        Dummy mode enabled — no backend connected
+        Connected to backend — live data mode
       </p>
     </div>
   );

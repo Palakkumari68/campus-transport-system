@@ -18,31 +18,39 @@
 //   return children;
 // }
 
-import React from "react"; 
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import React from "react";
 import { Navigate } from "react-router-dom";
 
-export function PrivateRoute({ children, roles }) {
-  const currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
+export function PrivateRoute({ children, allowedRoles = [] }) {
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const token = localStorage.getItem("token");
 
-  // ❌ Not logged in
-  if (!currentUser) {
+  // not logged in
+  if (!user || !token) {
     return <Navigate to="/login" replace />;
   }
 
-  // ❌ Wrong role → redirect to their own dashboard
-  if (roles && !roles.includes(currentUser.role)) {
-    if (currentUser.role === "ADMIN") {
-      return <Navigate to="/admin/dashboard" replace />;
-    }
-    if (currentUser.role === "DRIVER") {
-      return <Navigate to="/driver/dashboard" replace />;
-    }
-    if (currentUser.role === "USER") {
-      return <Navigate to="/dashboard" replace />;
-    }
+  // no role restriction
+  if (!allowedRoles.length) {
+    return children;
   }
 
-  // ✅ Allowed
+  // role not allowed
+  if (!allowedRoles.includes(user.role)) {
+    if (user.role === "ADMIN") {
+      return <Navigate to="/admin/dashboard" replace />;
+    }
+
+    if (user.role === "DRIVER") {
+      return <Navigate to="/driver/dashboard" replace />;
+    }
+
+    if (user.role === "USER" || user.role === "STUDENT") {
+      return <Navigate to="/dashboard" replace />;
+    }
+
+    return <Navigate to="/login" replace />;
+  }
+
   return children;
 }

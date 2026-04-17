@@ -7,28 +7,53 @@ export default function Dashboard() {
   const [requests, setRequests] = useState([]);
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("currentUser") || "null");
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    const token = localStorage.getItem("token");
 
-    if (!user) {
-      navigate("/", { replace: true });
+    if (!user || !token) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    if (user.role !== "STUDENT" && user.role !== "USER") {
+      if (user.role === "ADMIN") {
+        navigate("/admin/dashboard", { replace: true });
+      } else if (user.role === "DRIVER") {
+        navigate("/driver/dashboard", { replace: true });
+      } else {
+        navigate("/login", { replace: true });
+      }
       return;
     }
 
     setCurrentUser(user);
 
     const allRequests = JSON.parse(localStorage.getItem("requests") || "[]");
-    const userRequests = allRequests.filter((r) => r.userEmail === user.email);
+    const userRequests = allRequests.filter((r) => {
+      const requestEmail =
+        r.userEmail || r.email || r.requesterEmail || r.requester?.email;
+      return requestEmail === user.email;
+    });
+
     setRequests(userRequests);
   }, [navigate]);
 
   const handleLogout = () => {
+    localStorage.removeItem("user");
     localStorage.removeItem("currentUser");
-    navigate("/");
+    localStorage.removeItem("token");
+    navigate("/login", { replace: true });
   };
 
   const stats = useMemo(() => {
-    const pending = requests.filter((r) => r.status === "Pending").length;
-    const completed = requests.filter((r) => r.status === "Completed").length;
+    const pending = requests.filter(
+      (r) => r.status === "Pending" || r.status === "PENDING"
+    ).length;
+
+    const completed = requests.filter(
+      (r) => r.status === "Completed" || r.status === "COMPLETED"
+    ).length;
+
     return {
       total: requests.length,
       pending,
@@ -535,11 +560,6 @@ export default function Dashboard() {
               <span>My Requests</span>
             </button>
 
-            <button className="nav-btn" onClick={() => navigate("/register")}>
-              <span>📝</span>
-              <span>Register</span>
-            </button>
-
             <button className="nav-btn" onClick={handleLogout}>
               <span>🚪</span>
               <span>Logout</span>
@@ -559,7 +579,7 @@ export default function Dashboard() {
             <div>
               <h1 className="page-title">Dashboard</h1>
               <p className="page-subtitle">
-                Welcome back, {currentUser.fullName || currentUser.email} ({currentUser.role})
+                Welcome back, {currentUser.fullName || currentUser.name || currentUser.email} ({currentUser.role})
               </p>
             </div>
 
@@ -575,7 +595,7 @@ export default function Dashboard() {
                 Manage bookings, track vehicles, and access transport services with ease
               </h2>
               <p className="hero-text">
-                our dashboard gives quick access to e-rickshaw booking, emergency ambulance
+                Our dashboard gives quick access to e-rickshaw booking, emergency ambulance
                 support, request tracking, and service registration in one clean interface.
               </p>
 
@@ -617,15 +637,15 @@ export default function Dashboard() {
                   <div className="service-icon">🛺</div>
                   <div className="service-title">E-Rickshaw</div>
                   <div className="service-desc">
-                    Fast and convenient in-campus transport for students and staff.
+                    Fast and convenient olny for teachers and staff.
                   </div>
                 </div>
 
                 <div className="service-box">
                   <div className="service-icon">🚛</div>
-                  <div className="service-title">Tempo Service</div>
+                  <div className="service-title">Indenta</div>
                   <div className="service-desc">
-                    Useful for shifting luggage, equipment, and other goods within campus.
+                    Fast and convenient in-campus transport for students and staff.
                   </div>
                 </div>
 
@@ -645,9 +665,6 @@ export default function Dashboard() {
                 <button className="soft-btn" onClick={() => navigate("/request-status")}>
                   View Status
                 </button>
-                <button className="soft-btn" onClick={() => navigate("/register")}>
-                  Update Registration
-                </button>
               </div>
             </div>
 
@@ -656,7 +673,9 @@ export default function Dashboard() {
               <div className="profile-list">
                 <div className="profile-item">
                   <span className="profile-label">Full Name</span>
-                  <span className="profile-value">{currentUser.fullName || "N/A"}</span>
+                  <span className="profile-value">
+                    {currentUser.fullName || currentUser.name || "N/A"}
+                  </span>
                 </div>
                 <div className="profile-item">
                   <span className="profile-label">Email</span>
